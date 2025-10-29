@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession # Engine for postgress async
 from models.user_service_models import (LoginForm, AuthenticatedUser, TokenResponse, RegisterForm, TokenResponse) # Validation models for auth (Account creation, login, token response)       
 from services.user_service import register_user, create_access_token, login_user, verify_password, hash_password, load_user # Auxiliar functions for routers
-from core.security import validate_token 
+from core.security import validate_token , validate_internal_action_token
 from db.session import get_session # Get async session for bd
 from db.models.models import User # Structure of the table
 from core.limiter import limiter
@@ -79,6 +79,37 @@ async def load_personal_data (
             status_code = status.HTTP_404_NOT_FOUND,
             content={"detail":"User Not found."}
         )
+    return JSONResponse(
+        status_code = status.HTTP_200_OK,
+        content={"user_name":user.name, "user_lastname":user.last_name, "user_last_login":utc_return_time_cast(user.last_login),
+                 "user_address":user.address, "user_creation_date":utc_return_time_cast(user.creation_date), "user_role":user.role,
+                 "user_email":user.email}
+    )
+    
+    
+@router.get("/get_user_data/{user_id}", status_code = status.HTTP_200_OK, include_in_schema=True) 
+@limiter.limit("60/minute")
+async def load_personal_data (
+    user_id: str,
+    request: Request,
+    x_internal_action_token: str,
+    db: AsyncSession = Depends(get_session) # Async session for bd       
+    ):
+    """Endpoint to load the user personal data"""
+
+    x_internal_action_token = x_internal_action_token.replace("Bearer", "").strip()
+
+    await validate_internal_action_token(x_internal_action_token)
+    
+    user_query = await db.execute(select(User).where(User.id == UUID(user_id)))
+    user = user_query.scalar_one_or_none()
+    
+    if not user:
+        return JSONResponse(
+            status_code = status.HTTP_404_NOT_FOUND,
+            content={"detail":"User Not found."}
+        )
+
     return JSONResponse(
         status_code = status.HTTP_200_OK,
         content={"user_name":user.name, "user_lastname":user.last_name, "user_last_login":utc_return_time_cast(user.last_login),
