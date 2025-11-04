@@ -36,7 +36,7 @@ def create_access_token(data: dict, expires_minutes: int = 60) -> str: # JWT cre
     return encoded_jwt # token return
 
 async def register_user(db: AsyncSession, registry_data: RegisterForm):
-    """Register a new user in the database."""
+    """register a new user in the database."""
     duplicate_check = await db.execute(select(User).where(User.email == registry_data.email))
     duplicate_check_result = duplicate_check.scalar_one_or_none() # Check if user with this email already exists and return None if not return the user created in memory
     

@@ -3,7 +3,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
-from core.security import configure_security
 from routers import user_service_router
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -20,7 +19,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.get_cors_origins(),
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -29,7 +28,6 @@ app.add_middleware(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
-configure_security(app)
 
 # Routers, all routers and empoints that are configured for this Microservice
 app.include_router(user_service_router.router)
@@ -58,4 +56,18 @@ async def health_check(request: Request):
             "version": "1.0.0",
             "client_ip": request.client.host
         }
+    )
+@app.options("/{rest_of_path:path}")
+async def options_handler(rest_of_path: str):
+    """
+    Responde manualmente a las solicitudes OPTIONS (preflight).
+    """
+    return JSONResponse(
+        status_code=200,
+        content={"detail": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": ", ".join(settings.get_cors_origins()),
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept",
+        },
     )
