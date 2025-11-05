@@ -6,7 +6,7 @@ async function fetchProfile() {
   const token = cookieStore.get("auth_token")?.value;
   if (!token) return null;
 
-  const backend = process.env.BACKEND_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL;
+  const backend = process.env.API_USER_API || "http://localhost:8000";
   const res = await fetch(`${backend}/users/me`, {
     method: "POST",
     headers: {
